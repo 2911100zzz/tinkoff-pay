@@ -1,82 +1,70 @@
-/* ---------- imports ---------- */
-import https  from 'https';
+// tinkoff-pay/api/create-payment.js
 import crypto from 'crypto';
+import fetch from 'node-fetch';
 
-/* ---------- конфигурация ---------- */
-const TERMINAL_KEY = '1751222414102';       // ваш тестовый TerminalKey
-const PASSWORD     = 'bKqncR!3sO5Ti2Si';        // ваш тестовый Password
-const SUCCESS_URL  = 'http://pikker.ru/success';
-const FAIL_URL     = 'http://pikker.ru/error';
+const TERMINAL_KEY = '1751222414062DEMO';
+const PASSWORD     = 'cphAtzhjwfgaWb#$';
+const SUCCESS_URL  = 'https://project5662082.tilda.ws/success';
+const FAIL_URL     = 'https://project5662082.tilda.ws/fail';
 
-/* ---------- вспомогательные функции ---------- */
-function generateToken(params) {
-  // добавляем пароль, удаляем поля-объекты
-  const data = { ...params, Password: PASSWORD };
-  delete data.DATA; delete data.Receipt;
-  delete data.Shops; delete data.ReceiptData;
-
-  const concat = Object.keys(data).sort().map(k => data[k]).join('');
-  return crypto.createHash('sha256').update(concat).digest('hex');
+// ───── генерация короткого уникального orderId ─────
+function makeOrderId () {
+  const ts  = Date.now().toString(36);          // 8-9 симв.
+  const rnd = crypto.randomBytes(3).toString('hex'); // 6 симв.
+  return `ord-${ts}-${rnd}`;                    // всего ~20 симв.
 }
 
-/* ---------- основной обработчик ---------- */
-export default async function handler(req, res) {
-  /* --- CORS --- */
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  if (req.method === 'OPTIONS') { res.status(200).end(); return; }
-  /* ------------- */
+// ───── расчёт Token для Init ─────
+function makeToken (obj) {
+  const o = { ...obj, Password: PASSWORD };
+  const str = Object.keys(o).sort().map(k => `${k}=${o[k]}`).join('');
+  return crypto.createHash('sha256').update(str).digest('hex');
+}
 
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method Not Allowed' });
-  }
+export default async function handler (req, res) {
+  if (req.method !== 'POST') return res.status(405).end('method not allowed');
 
   try {
-    const { license, amount } = req.body || {};
-    if (!license || !amount) {
-      return res.status(400).json({ error: 'Missing license or amount' });
+    const { license, amount } = req.body;          // license = "строка c номерами через , "
+    const licensesArr = license.split(',').map(s => s.trim()).filter(Boolean);
+
+    if (!licensesArr.length || !amount) {
+      return res.status(400).json({ error: 'missing fields' });
     }
 
-    const orderId = Date.now() + '_' + license.replace(/[^a-zA-Z0-9]/g, '');
+    /* 1. генерируем уникальный orderId */
+    const orderId = makeOrderId();
+
+    /* 2. сохраняем заказ на ваш сервер */
+    await fetch('http://tc-soft.ru/TC2019/Pay/save-order.php', {
+      method : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body   : JSON.stringify({ orderId, licenses: licensesArr })
+    });
+
+    /* 3. создаём платёж в Tinkoff */
     const payload = {
       TerminalKey: TERMINAL_KEY,
-      Amount: Math.round(Number(amount) * 100),
-      OrderId: orderId,
-      Description: `разработка программного обеспечения ${license}`,
-      SuccessURL: SUCCESS_URL,
-      FailURL: FAIL_URL,
-      DATA: { License: license }
+      Amount     : Math.round(amount * 100),
+      OrderId    : orderId,
+      Description: 'оплата лицензий',
+      SuccessURL : SUCCESS_URL,
+      FailURL    : FAIL_URL
     };
-    payload.Token = generateToken(payload);
-    const body = JSON.stringify(payload);
+    payload.Token = makeToken(payload);
 
-    /* --- запрос в Т-Банк /v2/Init --- */
-    const tinkoffResp = await new Promise((resolve, reject) => {
-      const reqPay = https.request(
-        {
-          hostname: 'securepay.tinkoff.ru',
-          path: '/v2/Init',
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Content-Length': Buffer.byteLength(body)
-          }
-        },
-        resp => {
-          let data = '';
-          resp.on('data', chunk => (data += chunk));
-          resp.on('end', () => resolve(JSON.parse(data)));
-        }
-      );
-      reqPay.on('error', reject);
-      reqPay.write(body);
-      reqPay.end();
-    });
-    /* --------------------------------- */
+    const bankRes = await fetch('https://securepay.tinkoff.ru/v2/Init', {
+      method : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body   : JSON.stringify(payload)
+    }).then(r => r.json());
 
-    return res.status(200).json(tinkoffResp);
-  } catch (err) {
-    console.error('create-payment error:', err);
-    return res.status(500).json({ error: 'Internal Server Error', details: err.message });
+    return res.status(200).json(bankRes);
+  } catch (e) {
+    console.error('create-payment error:', e);
+    return res.status(500).json({ error: 'internal error' });
   }
 }
+
+/* Vercel runtime config */
+export const config = { api: { bodyParser: true } };
