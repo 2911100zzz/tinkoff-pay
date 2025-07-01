@@ -6,7 +6,7 @@
 import crypto from 'crypto';
 import fetch  from 'node-fetch';         // <-- в package.json:  "node-fetch": "^3.3.2"
 
-/* === 1. Константы вашего магазина  === */
+/* === 1. Константы  вашего магазина  === */
 const TERMINAL_KEY = '1751222414102';
 const PASSWORD     = 'bKqncR!3sO5Ti2Si';
 
