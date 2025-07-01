@@ -1,30 +1,16 @@
 const https = require('https');
 
 const TERMINAL_KEY = '1751222414062DEMO';
-const PASSWORD     = 'cphAtzhjwfgaWb#$';
-const SUCCESS_URL  = 'https://project5662082.tilda.ws/success';
-const FAIL_URL     = 'https://project5662082.tilda.ws/fail';
+const PASSWORD = 'cphAtzhjwfgaWb#$';
+const SUCCESS_URL = 'https://project5662082.tilda.ws/success';
+const FAIL_URL = 'https://project5662082.tilda.ws/fail';
 
 function generateToken(params) {
-+  const crypto = require('crypto');
-+
-+  // Клонируем объект и добавляем Password
-+  const tmp = Object.assign({}, params, { Password });
-+
-+  // Удаляем поля-объекты, которые не участвуют в подписи
-+  delete tmp.DATA;
-+  delete tmp.Receipt;
-+  delete tmp.Shops;
-+  delete tmp.ReceiptData;
-+
-+  // Сортируем ключи и склеиваем значения
-+  const concat = Object.keys(tmp)
-+    .sort()
-+    .map(k => tmp[k])
-+    .join('');
-+
-+  return crypto.createHash('sha256').update(concat).digest('hex');
-+}
+  const crypto = require('crypto');
+  const sorted = Object.assign({}, params, { Password: PASSWORD });
+  const ordered = Object.keys(sorted).sort().map(k => `${k}=${sorted[k]}`).join('');
+  return crypto.createHash('sha256').update(ordered).digest('hex');
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -39,28 +25,46 @@ export default async function handler(req, res) {
       return;
     }
 
-    const orderId = Date.now() + '-' + license.replace(/[^a-zA-Z0-9]/g, '');
+    const orderId = Date.now() + '_' + license.replace(/[^a-zA-Z0-9]/g, '');
     const payload = {
       TerminalKey: TERMINAL_KEY,
       Amount: Math.round(amount * 100),
       OrderId: orderId,
-      Description: `Оплата лицензии ${license}`,
+      Description: 'Оплата лицензии ' + license,
       SuccessURL: SUCCESS_URL,
       FailURL: FAIL_URL,
-      DATA: { License: license }
     };
 
     payload.Token = generateToken(payload);
 
-    const response = await fetch('https://securepay.tinkoff.ru/v2/Init', {
+    const requestData = JSON.stringify(payload);
+
+    const options = {
+      hostname: 'securepay.tinkoff.ru',
+      port: 443,
+      path: '/v2/Init',
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(requestData),
+      },
+    };
+
+    const tinkoffResponse = await new Promise((resolve, reject) => {
+      const request = https.request(options, (response) => {
+        let data = '';
+        response.on('data', (chunk) => data += chunk);
+        response.on('end', () => resolve(JSON.parse(data)));
+      });
+
+      request.on('error', (error) => reject(error));
+      request.write(requestData);
+      request.end();
     });
 
-    const data = await response.json();
-    res.status(200).json(data);
+    res.status(200).json(tinkoffResponse);
   } catch (err) {
+    console.error('Internal server error:', err);
     res.status(500).json({ error: 'Internal Server Error', details: err.message });
   }
 }
