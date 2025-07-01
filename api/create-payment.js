@@ -97,6 +97,7 @@ payload.Token = makeToken(payload);
       headers: { 'Content-Type': 'application/json' },
       body   : JSON.stringify(payload)
     }).then(r => r.json());
+    console.log('Tinkoff response:', bankRes);  // ← временный лог
 
     return res.status(200).json(bankRes);
   } catch (err) {
