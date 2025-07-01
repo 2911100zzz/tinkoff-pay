@@ -1,82 +1,72 @@
 /*  api/create-payment.js
- *  Vercel API Route: принимает POST из формы, сохраняет заказ на вашем сервере
- *  и создаёт платёж в Tinkoff.  CORS-safe, зависит только от node-fetch.
- *  ───────────────────────────────────────────────────────────────────────── */
+ *  Создаёт платёж в Tinkoff и сохраняет OrderId → лицензии
+ *  (Node 18+ — можно использовать встроенный fetch, node-fetch не нужен)
+ */
 
 import crypto from 'crypto';
-import fetch  from 'node-fetch';         // <-- в package.json:  "node-fetch": "^3.3.2"
 
-/* === 1. Константы  вашего магазина  === */
+/* === 1. реквизиты терминала === */
 const TERMINAL_KEY = '1751222414102';
-const PASSWORD     = 'bKqncR!3sO5Ti2Si';
+const SECRET_KEY   = 'bKqncR!3sO5Ti2Si';
 
 const SUCCESS_URL  = 'https://project5662082.tilda.ws/success';
 const FAIL_URL     = 'https://project5662082.tilda.ws/fail';
 
-/* URL, куда сохраняем «OrderId → лицензии» на вашем сервере */
+/* URL скрипта на вашем сервере, куда сохраняем заказ */
 const SAVE_URL     = 'http://tc-soft.ru/TC2019/Pay/save-order.php';
 
-/* === 2. Вспомогательные функции === */
+/* === 2. utilities === */
 
-/* короткий уникальный orderId: ord-<ts36>-<randHex6>  (≈ 20 символов) */
-function makeOrderId() {
-  // 'ORD' + время в 36-чном + 5 случайных симв.
-  return 'ORD' + Date.now().toString(36) + crypto.randomBytes(3).toString('hex');
+/* уникальный, короткий (< 36 симв.) OrderId */
+function makeOrderId () {
+  return (
+    'ORD' +
+    Date.now().toString(36) +      // время
+    crypto.randomBytes(3).toString('hex')  // 6 симв. случайно
+  );
 }
 
-/* Шифр SHA-256: согласно документации Tinkoff v2/Init */
-function makeToken(obj) {
-  // убираем Token, Password, Receipt и DATA (их не нужно включать)
-  const data = { ...obj };
+/* правильная подпись (Token) — конкатенация ТОЛЬКО значений + SecretKey */
+function makeToken (obj) {
+  const data = { ...obj };           // копия без Token / Receipt
   delete data.Token;
-  delete data.Password;
   delete data.Receipt;
-  delete data.DATA;
-
-  // 1) сортируем ключи 2) берём ТОЛЬКО значения 3) добавляем SecretKey
   const str = Object.keys(data)
     .sort()
-    .reduce((acc, k) => acc + data[k], '') + PASSWORD;
-
+    .reduce((acc, k) => acc + data[k], '') + SECRET_KEY;
   return crypto.createHash('sha256').update(str).digest('hex');
 }
 
-
-
-/* === 3. Основной обработчик  === */
+/* === 3. handler === */
 export default async function handler (req, res) {
-  /* ── CORS pre-flight ── */
+  /* — CORS preflight — */
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Origin',  '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     return res.status(200).end();
   }
-
   if (req.method !== 'POST') {
     return res.status(405).end('method not allowed');
   }
-
-  /* разрешаем CORS для самого POST-ответа */
   res.setHeader('Access-Control-Allow-Origin', '*');
 
   try {
+    /* входные поля формы */
     const { license = '', amount } = req.body || {};
-
-    /* 1) нормализуем список лицензий */
     const licensesArr = license
       .split(/[\n,]+/)
       .map(s => s.trim())
-      .filter(s => s.length > 0);
+      .filter(Boolean);
 
     if (!licensesArr.length || !amount || isNaN(amount)) {
-      return res.status(400).json({ error: 'missing or bad fields' });
+      return res.status(400).json({ error: 'missing fields' });
     }
 
-    /* 2) генерируем уникальный OrderId */
+    /* уникальный OrderId */
     const orderId = makeOrderId();
 
-    /* 3) сохраняем данные заказа на вашем сервере */
+    /* сохраняем заказ на сервере (не критично, если не удастся) */
     try {
       await fetch(SAVE_URL, {
         method : 'POST',
@@ -84,35 +74,33 @@ export default async function handler (req, res) {
         body   : JSON.stringify({ orderId, licenses: licensesArr })
       });
     } catch (e) {
-      console.error('save-order failed (проигнорировано):', e.message);
-      /* не прерываем процесс — платёж всё равно создадим */
+      console.error('save-order failed (ignored):', e.message);
     }
 
-/* 4) собираем payload для /v2/Init */
-const payload = {
-  TerminalKey: TERMINAL_KEY,
-  Amount     : Math.round(parseFloat(amount) * 100), // в копейках
-  OrderId    : orderId,
-  Description: 'оплата лицензий',
-  SuccessURL : SUCCESS_URL,   // ← здесь
-  FailURL    : FAIL_URL       // ← здесь
-};
-payload.Token = makeToken(payload);
+    /* формируем запрос Init */
+    const payload = {
+      TerminalKey: TERMINAL_KEY,
+      Amount     : Math.round(Number(amount) * 100), // копейки
+      OrderId    : orderId,
+      Description: 'оплата лицензий',
+      SuccessURL,
+      FailURL
+    };
+    payload.Token = makeToken(payload);
 
-    /* 5) запрос к Tinkoff */
+    /* запрос к Tinkoff */
     const bankRes = await fetch('https://securepay.tinkoff.ru/v2/Init', {
       method : 'POST',
       headers: { 'Content-Type': 'application/json' },
       body   : JSON.stringify(payload)
     }).then(r => r.json());
-    console.log('Tinkoff response:', bankRes);  // ← временный лог
 
     return res.status(200).json(bankRes);
   } catch (err) {
-    console.error('create-payment error:', err);
+    console.error('create-payment fatal:', err);
     return res.status(500).json({ error: 'internal server error' });
   }
 }
 
-/* Включаем парсинг JSON-тела у Vercel */
+/* — bodyParser включён — */
 export const config = { api: { bodyParser: true } };
