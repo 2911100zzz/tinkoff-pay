@@ -26,13 +26,21 @@ function makeOrderId() {
 
 /* Шифр SHA-256: согласно документации Tinkoff v2/Init */
 function makeToken(obj) {
-  const data = { ...obj, Password: PASSWORD };
-  const str  = Object.keys(data)
+  // убираем Token, Password, Receipt и DATA (их не нужно включать)
+  const data = { ...obj };
+  delete data.Token;
+  delete data.Password;
+  delete data.Receipt;
+  delete data.DATA;
+
+  // 1) сортируем ключи 2) берём ТОЛЬКО значения 3) добавляем SecretKey
+  const str = Object.keys(data)
     .sort()
-    .map(k => `${k}=${data[k]}`)   // ←  именно  "key=value"
-    .join('');
+    .reduce((acc, k) => acc + data[k], '') + PASSWORD;
+
   return crypto.createHash('sha256').update(str).digest('hex');
 }
+
 
 
 /* === 3. Основной обработчик  === */
