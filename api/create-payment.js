@@ -1,8 +1,8 @@
 import crypto from 'crypto';
 
 /* реквизиты Demo-терминала */
-const TERMINAL_KEY = '1751222414102';
-const SECRET_KEY   = 'bKqncR!3sO5Ti2Si';
+const TERMINAL_KEY = '1751222414062DEMO';
+const SECRET_KEY   = 'cphAtzhjwfgaWb#$';
 
 const SUCCESS_URL  = 'https://project5662082.tilda.ws/success';
 const FAIL_URL     = 'https://project5662082.tilda.ws/fail';
