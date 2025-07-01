@@ -7,8 +7,8 @@ import crypto from 'crypto';
 import fetch  from 'node-fetch';         // <-- в package.json:  "node-fetch": "^3.3.2"
 
 /* === 1. Константы вашего магазина  === */
-const TERMINAL_KEY = '1751222414062DEMO';
-const PASSWORD     = 'cphAtzhjwfgaWb#$';
+const TERMINAL_KEY = '1751222414102';
+const PASSWORD     = 'bKqncR!3sO5Ti2Si';
 
 const SUCCESS_URL  = 'https://project5662082.tilda.ws/success';
 const FAIL_URL     = 'https://project5662082.tilda.ws/fail';
@@ -80,16 +80,16 @@ export default async function handler (req, res) {
       /* не прерываем процесс — платёж всё равно создадим */
     }
 
-    /* 4) собираем payload для /v2/Init */
-    const payload = {
-      TerminalKey: TERMINAL_KEY,
-      Amount     : Math.round(parseFloat(amount) * 100), // в копейках
-      OrderId    : orderId,
-      Description: 'оплата лицензий',
-      SuccessURL,
-      FailURL
-    };
-    payload.Token = makeToken(payload);
+/* 4) собираем payload для /v2/Init */
+const payload = {
+  TerminalKey: TERMINAL_KEY,
+  Amount     : Math.round(parseFloat(amount) * 100), // в копейках
+  OrderId    : orderId,
+  Description: 'оплата лицензий',
+  SuccessURL : SUCCESS_URL,   // ← здесь
+  FailURL    : FAIL_URL       // ← здесь
+};
+payload.Token = makeToken(payload);
 
     /* 5) запрос к Tinkoff */
     const bankRes = await fetch('https://securepay.tinkoff.ru/v2/Init', {
