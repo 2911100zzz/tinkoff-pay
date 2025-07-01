@@ -95,18 +95,19 @@ const payload = {
     payload.Token = makeToken(payload);
 
     /* запрос к Tinkoff */
-    const bankRes = await fetch('https://securepay.tinkoff.ru/v2/Init', {
-      method : 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body   : JSON.stringify(payload)
-    }).then(r => r.json());
+/* 5) запрос к Tinkoff */
+const bankRes = await fetch('https://securepay.tinkoff.ru/v2/Init', {
+  method : 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body   : JSON.stringify(payload)
+}).then(r => r.json());
 
-    return res.status(200).json(bankRes);
-  } catch (err) {
-    console.error('create-payment fatal:', err);
-    return res.status(500).json({ error: 'internal server error' });
-  }
-}
+/* ← ВСТАВЬ СЮДА логи */
+console.log('Init payload:', payload);      // что отправили
+console.log('Tinkoff response:', bankRes);  // что вернул банк
+/* ← ─────────────────────────────────────── */
+
+return res.status(200).json(bankRes);
 
 /* — bodyParser включён — */
 export const config = { api: { bodyParser: true } };
