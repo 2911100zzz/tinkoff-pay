@@ -42,7 +42,7 @@ export default async function handler(req, res) {
       TerminalKey: TERMINAL_KEY,
       Amount: Math.round(Number(amount) * 100),
       OrderId: orderId,
-      Description: `Оплата лицензии ${license}`,
+      Description: `разработка программного обеспечения ${license}`,
       SuccessURL: SUCCESS_URL,
       FailURL: FAIL_URL,
       DATA: { License: license }
