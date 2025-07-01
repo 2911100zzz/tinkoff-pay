@@ -2,7 +2,7 @@
  *  Создаёт платёж в Tinkoff и сохраняет OrderId → лицензии
  *  (Node 18+ — можно использовать встроенный fetch, node-fetch не нужен)
  */
-
+import fetch from 'node-fetch';
 import crypto from 'crypto';
 
 /* === 1. реквизиты терминала === */
