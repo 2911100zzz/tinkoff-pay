@@ -6,7 +6,7 @@ const SUCCESS_URL = 'https://project5662082.tilda.ws/success';
 const FAIL_URL = 'https://project5662082.tilda.ws/fail';
 
 function generateToken(params) {
-  const crypto = require('crypto');
+  import crypto from 'crypto';
   const sorted = Object.assign({}, params, { Password: PASSWORD });
   const ordered = Object.keys(sorted).sort().map(k => `${k}=${sorted[k]}`).join('');
   return crypto.createHash('sha256').update(ordered).digest('hex');
