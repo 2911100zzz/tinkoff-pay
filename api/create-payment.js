@@ -6,11 +6,25 @@ const SUCCESS_URL  = 'https://project5662082.tilda.ws/success';
 const FAIL_URL     = 'https://project5662082.tilda.ws/fail';
 
 function generateToken(params) {
-  const crypto = require('crypto');
-  const sorted = Object.assign({}, params, { Password: PASSWORD });
-  const ordered = Object.keys(sorted).sort().map(k => sorted[k]).join('');
-  return crypto.createHash('sha256').update(ordered).digest('hex');
-}
++  const crypto = require('crypto');
++
++  // Клонируем объект и добавляем Password
++  const tmp = Object.assign({}, params, { Password });
++
++  // Удаляем поля-объекты, которые не участвуют в подписи
++  delete tmp.DATA;
++  delete tmp.Receipt;
++  delete tmp.Shops;
++  delete tmp.ReceiptData;
++
++  // Сортируем ключи и склеиваем значения
++  const concat = Object.keys(tmp)
++    .sort()
++    .map(k => tmp[k])
++    .join('');
++
++  return crypto.createHash('sha256').update(concat).digest('hex');
++}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
