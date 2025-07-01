@@ -14,12 +14,23 @@ function makeOrderId() {
   return 'ORD' + Date.now().toString(36) + crypto.randomBytes(3).toString('hex');
 }
 function makeToken(obj) {
-  const data = { ...obj };
+  // 1) копируем объект и добавляем пароль как поле Password
+  const data = { ...obj, Password: SECRET_KEY };
+
+  // 2) удаляем поля-объекты, которые не участвуют в подписи
   delete data.Token;
   delete data.Receipt;
-  const str = Object.keys(data).sort().reduce((s, k) => s + data[k], '') + SECRET_KEY;
+  delete data.DATA;   // ← если есть
+
+  // 3) сортируем ключи и конкатенируем ТОЛЬКО значения
+  const str = Object.keys(data)
+    .sort()
+    .map(k => data[k])
+    .join('');          // ← БЕЗ добавления SECRET_KEY вторично!
+
   return crypto.createHash('sha256').update(str).digest('hex');
 }
+
 
 export default async function handler(req, res) {
   /* CORS pre-flight */
