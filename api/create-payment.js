@@ -19,22 +19,18 @@ const SAVE_URL     = 'http://tc-soft.ru/TC2019/Pay/save-order.php';
 /* === 2. Вспомогательные функции === */
 
 /* короткий уникальный orderId: ord-<ts36>-<randHex6>  (≈ 20 символов) */
-function makeOrderId () {
-  const ts  = Date.now().toString(36);          // timestamp в 36-чной
-  const rnd = crypto.randomBytes(3).toString('hex');
-  return `ord-${ts}-${rnd}`;
+function makeOrderId() {
+  // 'ORD' + время в 36-чном + 5 случайных симв.
+  return 'ORD' + Date.now().toString(36) + crypto.randomBytes(3).toString('hex');
 }
 
 /* Шифр SHA-256: согласно документации Tinkoff v2/Init */
 function makeToken(obj) {
   const data = { ...obj, Password: PASSWORD };
-
-  // ❗️по документации: конкатенировать ТОЛЬКО значения,
-  //    отсортировав ключи по алфавиту, БЕЗ «ключ=»
-  const str = Object.keys(data)
+  const str  = Object.keys(data)
     .sort()
-    .reduce((acc, k) => acc + data[k], '');
-
+    .map(k => `${k}=${data[k]}`)   // ←  именно  "key=value"
+    .join('');
   return crypto.createHash('sha256').update(str).digest('hex');
 }
 
