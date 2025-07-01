@@ -3,10 +3,10 @@ import https  from 'https';
 import crypto from 'crypto';
 
 /* ---------- конфигурация ---------- */
-const TERMINAL_KEY = '1751222414062DEMO';       // ваш тестовый TerminalKey
-const PASSWORD     = 'cphAtzhjwfgaWb#$';        // ваш тестовый Password
-const SUCCESS_URL  = 'https://project5662082.tilda.ws/success';
-const FAIL_URL     = 'https://project5662082.tilda.ws/fail';
+const TERMINAL_KEY = '1751222414102';       // ваш тестовый TerminalKey
+const PASSWORD     = 'bKqncR!3sO5Ti2Si';        // ваш тестовый Password
+const SUCCESS_URL  = 'https://securepay.tinkoff.ru/html/payForm/success.html';
+const FAIL_URL     = 'https://securepay.tinkoff.ru/html/payForm/fail.html';
 
 /* ---------- вспомогательные функции ---------- */
 function generateToken(params) {
