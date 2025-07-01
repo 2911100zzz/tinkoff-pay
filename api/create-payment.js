@@ -5,8 +5,8 @@ import crypto from 'crypto';
 /* ---------- конфигурация ---------- */
 const TERMINAL_KEY = '1751222414102';       // ваш тестовый TerminalKey
 const PASSWORD     = 'bKqncR!3sO5Ti2Si';        // ваш тестовый Password
-const SUCCESS_URL  = 'https://securepay.tinkoff.ru/html/payForm/success.html';
-const FAIL_URL     = 'https://securepay.tinkoff.ru/html/payForm/fail.html';
+const SUCCESS_URL  = 'http://pikker.ru/success';
+const FAIL_URL     = 'http://pikker.ru/error';
 
 /* ---------- вспомогательные функции ---------- */
 function generateToken(params) {
