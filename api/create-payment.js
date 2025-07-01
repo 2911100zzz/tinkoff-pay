@@ -1,70 +1,81 @@
-const https = require('https');
+// ---------- imports ----------
+import https from 'https';
+import crypto from 'crypto';
 
+// ---------- constants ----------
 const TERMINAL_KEY = '1751222414062DEMO';
-const PASSWORD = 'cphAtzhjwfgaWb#$';
-const SUCCESS_URL = 'https://project5662082.tilda.ws/success';
-const FAIL_URL = 'https://project5662082.tilda.ws/fail';
+const PASSWORD     = 'cphAtzhjwfgaWb#$';
+const SUCCESS_URL  = 'https://project5662082.tilda.ws/success';
+const FAIL_URL     = 'https://project5662082.tilda.ws/fail';
 
+// ---------- helpers ----------
 function generateToken(params) {
-  import crypto from 'crypto';
-  const sorted = Object.assign({}, params, { Password: PASSWORD });
-  const ordered = Object.keys(sorted).sort().map(k => `${k}=${sorted[k]}`).join('');
-  return crypto.createHash('sha256').update(ordered).digest('hex');
+  // добавляем Password и убираем поля-объекты, которые не участвуют в подписи
+  const data = { ...params, Password };
+  delete data.DATA;
+  delete data.Receipt;
+  delete data.Shops;
+  delete data.ReceiptData;
+
+  const concat = Object.keys(data)
+    .sort()
+    .map(k => data[k])
+    .join('');
+
+  return crypto.createHash('sha256').update(concat).digest('hex');
 }
 
+// ---------- handler ----------
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
-    res.status(405).json({ error: 'Method Not Allowed' });
-    return;
+    return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
   try {
-    const { license, amount } = req.body;
+    const { license, amount } = req.body || {};
     if (!license || !amount) {
-      res.status(400).json({ error: 'Missing license or amount' });
-      return;
+      return res.status(400).json({ error: 'Missing license or amount' });
     }
 
     const orderId = Date.now() + '_' + license.replace(/[^a-zA-Z0-9]/g, '');
     const payload = {
       TerminalKey: TERMINAL_KEY,
-      Amount: Math.round(amount * 100),
-      OrderId: orderId,
-      Description: 'Оплата лицензии ' + license,
-      SuccessURL: SUCCESS_URL,
-      FailURL: FAIL_URL,
+      Amount:      Math.round(Number(amount) * 100),
+      OrderId:     orderId,
+      Description: `Оплата лицензии ${license}`,
+      SuccessURL:  SUCCESS_URL,
+      FailURL:     FAIL_URL,
+      DATA:        { License: license }
     };
 
     payload.Token = generateToken(payload);
+    const body    = JSON.stringify(payload);
 
-    const requestData = JSON.stringify(payload);
-
-    const options = {
-      hostname: 'securepay.tinkoff.ru',
-      port: 443,
-      path: '/v2/Init',
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(requestData),
-      },
-    };
-
-    const tinkoffResponse = await new Promise((resolve, reject) => {
-      const request = https.request(options, (response) => {
-        let data = '';
-        response.on('data', (chunk) => data += chunk);
-        response.on('end', () => resolve(JSON.parse(data)));
-      });
-
-      request.on('error', (error) => reject(error));
-      request.write(requestData);
-      request.end();
+    const tinkoffResp = await new Promise((resolve, reject) => {
+      const reqPay = https.request(
+        {
+          hostname: 'securepay.tinkoff.ru',
+          path:     '/v2/Init',
+          method:   'POST',
+          headers:  {
+            'Content-Type':   'application/json',
+            'Content-Length': Buffer.byteLength(body)
+          }
+        },
+        resp => {
+          let data = '';
+          resp.on('data', chunk => (data += chunk));
+          resp.on('end', () => resolve(JSON.parse(data)));
+        }
+      );
+      reqPay.on('error', reject);
+      reqPay.write(body);
+      reqPay.end();
     });
 
-    res.status(200).json(tinkoffResponse);
+    return res.status(200).json(tinkoffResp);
   } catch (err) {
-    console.error('Internal server error:', err);
-    res.status(500).json({ error: 'Internal Server Error', details: err.message });
+    console.error('create-payment error:', err);
+    return res.status(500).json({ error: 'Internal Server Error', details: err.message });
   }
 }
