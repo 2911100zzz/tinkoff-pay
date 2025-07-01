@@ -56,7 +56,11 @@ export default async function handler(req, res) {
       await fetch(SAVE_URL, {
         method : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body   : JSON.stringify({ orderId, licenses })
+        body   : JSON.stringify({
+        orderId,
+        amount: Number(amount),   // ← сумма в рублях
+        licenses
+    })
       });
     } catch {}
 
