@@ -78,14 +78,15 @@ export default async function handler (req, res) {
     }
 
     /* формируем запрос Init */
-    const payload = {
-      TerminalKey: TERMINAL_KEY,
-      Amount     : Math.round(Number(amount) * 100), // копейки
-      OrderId    : orderId,
-      Description: 'оплата лицензий',
-      SuccessURL,
-      FailURL
-    };
+const payload = {
+  TerminalKey: TERMINAL_KEY,
+  Amount     : Math.round(Number(amount) * 100),
+  OrderId    : orderId,
+  Description: 'оплата лицензий',
+  SuccessURL : SUCCESS_URL,   // используем объявленную константу
+  FailURL    : FAIL_URL       // и константу FAIL_URL
+};
+
     payload.Token = makeToken(payload);
 
     /* запрос к Tinkoff */
