@@ -10,8 +10,9 @@ const FAIL_URL     = 'https://project5662082.tilda.ws/fail';
 
 // ---------- helpers ----------
 function generateToken(params) {
-  // добавляем Password и убираем поля-объекты, которые не участвуют в подписи
-  const data = { ...params, Password };
+  // добавляем Password и убираем поля-объекты
+  const data = { ...params, Password: PASSWORD };
+
   delete data.DATA;
   delete data.Receipt;
   delete data.Shops;
