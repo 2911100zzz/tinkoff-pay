@@ -27,15 +27,20 @@ function makeOrderId () {
 }
 
 /* правильная подпись (Token) — конкатенация ТОЛЬКО значений + SecretKey */
-function makeToken (obj) {
-  const data = { ...obj };           // копия без Token / Receipt
+function makeToken(obj) {
+  const data = { ...obj };           // копируем объект без Token
   delete data.Token;
-  delete data.Receipt;
+  delete data.Receipt;               // (Receipt не участвует)
+  // 1) сортируем ключи
+  // 2) конкатенируем ТОЛЬКО значения
+  // 3) + SecretKey в КОНЕЦ
   const str = Object.keys(data)
     .sort()
     .reduce((acc, k) => acc + data[k], '') + SECRET_KEY;
+
   return crypto.createHash('sha256').update(str).digest('hex');
 }
+
 
 /* === 3. handler === */
 export default async function handler (req, res) {
