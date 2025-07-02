@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 
-/* реквизиты Demo-терминала */
+/* реквизиты боевого терминала */
 const TERMINAL_KEY = '1751222414102';
 const SECRET_KEY   = 'bKqncR!3sO5Ti2Si';
 
@@ -14,26 +14,14 @@ function makeOrderId() {
   return 'ORD' + Date.now().toString(36) + crypto.randomBytes(3).toString('hex');
 }
 function makeToken(obj) {
-  // 1) копируем объект и добавляем пароль как поле Password
   const data = { ...obj, Password: SECRET_KEY };
-
-  // 2) удаляем поля-объекты, которые не участвуют в подписи
-  delete data.Token;
-  delete data.Receipt;
-  delete data.DATA;   // ← если есть
-
-  // 3) сортируем ключи и конкатенируем ТОЛЬКО значения
-  const str = Object.keys(data)
-    .sort()
-    .map(k => data[k])
-    .join('');          // ← БЕЗ добавления SECRET_KEY вторично!
-
+  delete data.Token; delete data.Receipt; delete data.DATA;
+  const str = Object.keys(data).sort().map(k => data[k]).join('');
   return crypto.createHash('sha256').update(str).digest('hex');
 }
 
-
 export default async function handler(req, res) {
-  /* CORS pre-flight */
+  /* CORS */
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Origin',  '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -51,24 +39,20 @@ export default async function handler(req, res) {
 
     const orderId = makeOrderId();
 
-    /* сохраняем заказ на своём сервере (не критично при ошибке) */
+    /* фиксируем заказ на своём сервере */
     try {
       await fetch(SAVE_URL, {
         method : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body   : JSON.stringify({
-        orderId,
-        amount: Number(amount),   // ← сумма в рублях
-        licenses
-    })
+        body   : JSON.stringify({ orderId, amount: Number(amount), licenses })
       });
     } catch {}
 
     const payload = {
       TerminalKey: TERMINAL_KEY,
-      Amount     : Math.round(Number(amount) * 100),
+      Amount     : Math.round(Number(amount) * 100),            // копейки
       OrderId    : orderId,
-      Description: 'оплата лицензий',
+      Description: `разработка программного обеспечения (${licenses.join(', ')})`,
       SuccessURL : SUCCESS_URL,
       FailURL    : FAIL_URL
     };
@@ -80,7 +64,7 @@ export default async function handler(req, res) {
       body   : JSON.stringify(payload)
     }).then(r => r.json());
 
-    /* временные логи – смотрим в Runtime Logs */
+    /* временные логи */
     console.log('Init payload:', payload);
     console.log('Tinkoff response:', bankRes);
 
