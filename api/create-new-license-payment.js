@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 
 const TERMINAL_KEY = '1751222414102';
-const SECRET_KEY   = 'ТУТ_НОВЫЙ_ИЛИ_ТЕКУЩИЙ_SECRET_KEY';
+const SECRET_KEY   = 'bKqncR!3sO5Ti2Si';
 
 const SUCCESS_URL  = 'https://project5662082.tilda.ws/success';
 const FAIL_URL     = 'https://project5662082.tilda.ws/fail';
